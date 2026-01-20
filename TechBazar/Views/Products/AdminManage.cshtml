@@ -1,0 +1,406 @@
+@model IEnumerable<TechBazar.Models.Product>
+@using TechBazar.Services
+@using Microsoft.AspNetCore.Identity
+@inject PermissionService PermissionService
+@inject UserManager<ApplicationUser> UserManager
+@{
+    ViewData["Title"] = "Manage Products";
+    var categories = ViewBag.Categories as List<TechBazar.Models.Category> ?? new List<TechBazar.Models.Category>();
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Manage Products</h2>
+        <a asp-action="AdminAdd" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add New Product
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var product in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <img src="@product.ImageUrl" alt="@product.Name" style="width: 50px; height: 50px; object-fit: cover;" onerror="this.src='/images/default-product.jpg'">
+                                </td>
+                                <td>@product.Name</td>
+                                <td>@(product.Description?.Length > 50 ? product.Description.Substring(0, 50) + "..." : product.Description)</td>
+                                <td>$@product.Price.ToString("N2")</td>
+                                <td>@product.StockQuantity</td>
+                                <td>
+                                    @if (product.Category != null)
+                                    {
+                                        @product.Category.Name
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No Category</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (product.IsActive)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Inactive</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <!-- View Button -->
+                                        <a asp-action="Details" asp-route-id="@product.Id" class="btn btn-sm btn-info" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+
+                                        <!-- Toggle Status Button - Requires Products.Update permission -->
+                                        <button type="button" class="btn btn-sm @(product.IsActive ? "btn-secondary" : "btn-success") toggle-status-btn permission-required"
+                                                data-product-id="@product.Id" data-current-status="@product.IsActive.ToString().ToLower()"
+                                                data-permission="Products.Update"
+                                                title="@(product.IsActive ? "Deactivate" : "Activate")">
+                                            <i class="fas @(product.IsActive ? "fa-toggle-off" : "fa-toggle-on")"></i>
+                                        </button>
+
+                                        <!-- Edit Button (Modal Trigger) - Requires Products.Update permission -->
+                                        <button type="button" class="btn btn-sm btn-warning edit-btn permission-required" data-product-id="@product.Id" data-permission="Products.Update" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+
+                                        <!-- Delete Button - Requires Products.Delete permission -->
+                                        <button type="button" class="btn btn-sm btn-danger delete-btn permission-required" data-product-id="@product.Id" data-permission="Products.Delete" title="Remove">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- Edit Modal -->
+                                    <div class="modal fade" id="editModal@(product.Id)" tabindex="-1" aria-labelledby="editModalLabel@(product.Id)" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="editModalLabel@(product.Id)">Edit Product: @product.Name</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <form asp-action="UpdateProduct" method="post">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="Id" value="@product.Id" />
+                                                    <div class="modal-body">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Product Name</label>
+                                                            <input type="text" class="form-control" name="Name" value="@product.Name" required />
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Description</label>
+                                                            <textarea class="form-control" name="Description" rows="3" required>@product.Description</textarea>
+                                                        </div>
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Price</label>
+                                                                    <div class="input-group">
+                                                                        <span class="input-group-text">$</span>
+                                                                        <input type="number" class="form-control" name="Price" step="0.01" min="0.01" value="@product.Price" required />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Stock Quantity</label>
+                                                                    <input type="number" class="form-control" name="StockQuantity" min="0" value="@product.StockQuantity" required />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Category</label>
+                                                            <select class="form-select" name="CategoryId" required>
+                                                                <option value="">Select a category</option>
+                                                                @foreach (var category in categories)
+                                                                {
+                                                                    <option value="@category.Id" selected="@(category.Id == product.CategoryId)">@category.Name</option>
+                                                                }
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Image URL</label>
+                                                            <input type="text" class="form-control" name="ImageUrl" value="@product.ImageUrl" />
+                                                            <div class="form-text">Enter the image URL or leave empty for default image.</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="submit" class="btn btn-primary">Update Product</button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check permissions and hide unauthorized buttons
+            checkPermissions();
+
+            // Auto-focus on first input when modal opens
+            var modals = document.querySelectorAll('.modal');
+            modals.forEach(function(modal) {
+                modal.addEventListener('shown.bs.modal', function() {
+                    var input = this.querySelector('input, textarea, select');
+                    if (input) {
+                        input.focus();
+                    }
+                });
+            });
+
+            // Toggle status button handler
+            document.querySelectorAll('.toggle-status-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var productId = this.getAttribute('data-product-id');
+                    var currentStatus = this.getAttribute('data-current-status') === 'true';
+
+                    if (confirm('Are you sure you want to ' + (currentStatus ? 'deactivate' : 'activate') + ' this product?')) {
+                        fetch('/Products/ToggleProductStatus', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                            },
+                            body: 'id=' + productId
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update the button and badge
+                                var row = this.closest('tr');
+                                var statusBadge = row.querySelector('td:nth-child(7) span');
+                                var button = this;
+
+                                if (data.isActive) {
+                                    statusBadge.className = 'badge bg-success';
+                                    statusBadge.textContent = 'Active';
+                                    button.className = 'btn btn-sm btn-secondary toggle-status-btn';
+                                    button.setAttribute('data-current-status', 'true');
+                                    button.setAttribute('title', 'Deactivate');
+                                    button.querySelector('i').className = 'fas fa-toggle-off';
+                                } else {
+                                    statusBadge.className = 'badge bg-danger';
+                                    statusBadge.textContent = 'Inactive';
+                                    button.className = 'btn btn-sm btn-success toggle-status-btn';
+                                    button.setAttribute('data-current-status', 'false');
+                                    button.setAttribute('title', 'Activate');
+                                    button.querySelector('i').className = 'fas fa-toggle-on';
+                                }
+
+                                showAlert('Product status updated successfully!', 'success');
+                            } else {
+                                showAlert(data.message, 'danger');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showAlert('An error occurred while updating product status.', 'danger');
+                        });
+                    }
+                });
+            });
+
+            // Edit button handler
+            document.querySelectorAll('.edit-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var productId = this.getAttribute('data-product-id');
+
+                    // Fetch product data
+                    fetch('/Products/GetProduct?id=' + productId)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Populate modal with data
+                                var modal = document.getElementById('editModal' + productId);
+                                var form = modal.querySelector('form');
+
+                                form.querySelector('input[name="Name"]').value = data.product.name;
+                                form.querySelector('textarea[name="Description"]').value = data.product.description;
+                                form.querySelector('input[name="Price"]').value = data.product.price;
+                                form.querySelector('input[name="StockQuantity"]').value = data.product.stockQuantity;
+                                form.querySelector('select[name="CategoryId"]').value = data.product.categoryId;
+                                form.querySelector('input[name="ImageUrl"]').value = data.product.imageUrl || '';
+
+                                // Show modal
+                                var bsModal = new bootstrap.Modal(modal);
+                                bsModal.show();
+
+                                // Handle form submission via AJAX
+                                form.addEventListener('submit', function(e) {
+                                    e.preventDefault();
+
+                                    var formData = new FormData(form);
+
+                                    fetch('/Products/UpdateProductAjax', {
+                                        method: 'POST',
+                                        body: formData
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            bsModal.hide();
+                                            // Update the table row
+                                            updateTableRow(productId, formData);
+                                            showAlert(data.message, 'success');
+                                        } else {
+                                            showAlert(data.message, 'danger');
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error('Error:', error);
+                                        showAlert('An error occurred while updating the product.', 'danger');
+                                    });
+                                });
+                            } else {
+                                showAlert(data.message, 'danger');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showAlert('An error occurred while fetching product data.', 'danger');
+                        });
+                });
+            });
+
+            // Delete button handler
+            document.querySelectorAll('.delete-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var productId = this.getAttribute('data-product-id');
+
+                    if (confirm('Are you sure you want to remove this product?')) {
+                        fetch('/Products/RemoveProductAjax', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                            },
+                            body: 'id=' + productId
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Remove the row from table
+                                this.closest('tr').remove();
+                                showAlert(data.message, 'success');
+                            } else {
+                                showAlert(data.message, 'danger');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            showAlert('An error occurred while removing the product.', 'danger');
+                        });
+                    }
+                });
+            });
+
+            function updateTableRow(productId, formData) {
+                var button = document.querySelector('[data-product-id="' + productId + '"]');
+                if (button) {
+                    var row = button.closest('tr');
+                    if (row) {
+                        row.querySelector('td:nth-child(2)').textContent = formData.get('Name');
+                        row.querySelector('td:nth-child(3)').textContent = formData.get('Description').length > 50 ?
+                            formData.get('Description').substring(0, 50) + '...' : formData.get('Description');
+                        row.querySelector('td:nth-child(4)').textContent = '$' + parseFloat(formData.get('Price')).toFixed(2);
+                        row.querySelector('td:nth-child(5)').textContent = formData.get('StockQuantity');
+                        // Update category if needed
+                        var categorySelect = document.querySelector('select[name="CategoryId"]');
+                        var selectedOption = categorySelect.querySelector('option[value="' + formData.get('CategoryId') + '"]');
+                        if (selectedOption) {
+                            row.querySelector('td:nth-child(6)').textContent = selectedOption.textContent;
+                        }
+                    }
+                }
+            }
+
+            function checkPermissions() {
+                var permissionButtons = document.querySelectorAll('.permission-required');
+                var permissionsToCheck = new Set();
+
+                // Collect unique permissions to check
+                permissionButtons.forEach(function(btn) {
+                    var permission = btn.getAttribute('data-permission');
+                    if (permission) {
+                        permissionsToCheck.add(permission);
+                    }
+                });
+
+                // Check each permission
+                permissionsToCheck.forEach(function(permission) {
+                    fetch('/Products/CheckPermission?permission=' + encodeURIComponent(permission))
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data.hasPermission) {
+                                // Hide all buttons requiring this permission
+                                document.querySelectorAll('[data-permission="' + permission + '"]').forEach(function(btn) {
+                                    btn.style.display = 'none';
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error checking permission:', error);
+                        });
+                });
+            }
+
+            function showAlert(message, type) {
+                var alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-' + type + ' alert-dismissible fade show';
+                alertDiv.setAttribute('role', 'alert');
+                alertDiv.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+
+                var container = document.querySelector('.container');
+                container.insertBefore(alertDiv, container.firstChild);
+
+                setTimeout(function() {
+                    alertDiv.remove();
+                }, 5000);
+            }
+        });
+    </script>
+}

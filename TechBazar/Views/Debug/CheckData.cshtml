@@ -1,0 +1,17 @@
+﻿@{
+    ViewData["Title"] = "Debug Data";
+}
+
+<h2>Categories</h2>
+@foreach (var category in ViewBag.Categories)
+{
+    <p>@category.Id - @category.Name</p>
+}
+
+<h2>Products</h2>
+@foreach (var product in ViewBag.Products)
+{
+    <p>@product.Id - @product.Name - Category: @product.Category?.Name - Image: @product.ImageUrl</p>
+}
+
+<a href="/Products/AdminAdd" class="btn btn-primary">Test Add Product</a>

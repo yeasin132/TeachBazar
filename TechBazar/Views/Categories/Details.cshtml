@@ -1,0 +1,256 @@
+﻿@using TechBazar.Models
+@using TechBazar.Services
+@inject IMultiLanguageService TranslationService
+@model Category
+@{
+    ViewData["Title"] = await GetTranslated("Category", "Name", Model.Id) + " - TechBazaar";
+}
+
+@functions {
+    private int currentLanguageId = 1; // Default to English
+
+    public async Task<string> GetTranslated(string tableName, string columnName, long entityId)
+    {
+        // Get current language from cookie
+        if (Context.Request.Cookies.TryGetValue("SelectedLanguage", out var langCookie) && int.TryParse(langCookie, out var langId))
+        {
+            currentLanguageId = langId;
+        }
+        return await TranslationService.GetValueAsync(tableName, columnName, entityId, currentLanguageId);
+    }
+}
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Categories" asp-action="Index">Categories</a></li>
+            <li class="breadcrumb-item active">@await GetTranslated("Category", "Name", Model.Id)</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h1 class="card-title">@await GetTranslated("Category", "Name", Model.Id)</h1>
+                            <p class="card-text lead">@await GetTranslated("Category", "Description", Model.Id)</p>
+                            <p class="text-muted">
+                                <i class="fas fa-box"></i>
+                                @Model.Products.Count products available in this category
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="category-icon">
+                                @if (await GetTranslated("Category", "Name", Model.Id) == "Laptops")
+                                {
+                                    <i class="fas fa-laptop fa-5x text-primary"></i>
+                                }
+                                else if (await GetTranslated("Category", "Name", Model.Id) == "Smartphones")
+                                {
+                                    <i class="fas fa-mobile-alt fa-5x text-primary"></i>
+                                }
+                                else if (await GetTranslated("Category", "Name", Model.Id) == "Tablets")
+                                {
+                                    <i class="fas fa-tablet-alt fa-5x text-primary"></i>
+                                }
+                                else
+                                {
+                                    <i class="fas fa-headphones fa-5x text-primary"></i>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Products.Any())
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Products in @await GetTranslated("Category", "Name", Model.Id)</h2>
+                    <span class="badge bg-primary fs-6">@Model.Products.Count products</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            @foreach (var product in Model.Products)
+            {
+                <div class="col-md-6 col-lg-4 col-xl-3">
+                    <div class="card product-card h-100">
+                        <div class="position-relative">
+                            <img src="@product.ImageUrl" class="card-img-top" alt="@await GetTranslated("Product", "Name", product.Id)"
+                                 style="height: 200px; object-fit: cover; width: 100%;">
+                            @if (product.StockQuantity == 0)
+                            {
+                                <span class="position-absolute top-0 start-0 m-2 badge bg-danger">Out of Stock</span>
+                            }
+                            else if (product.StockQuantity < 10)
+                            {
+                                <span class="position-absolute top-0 start-0 m-2 badge bg-warning">Low Stock</span>
+                            }
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">@await GetTranslated("Product", "Name", product.Id)</h5>
+                            <p class="card-text flex-grow-1 text-muted">@await GetTranslated("Product", "Description", product.Id)</p>
+
+                            <div class="mt-auto">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong class="text-success fs-5">$@product.Price.ToString("N2")</strong>
+                                    <small class="text-muted">
+                                        @if (product.StockQuantity > 0)
+                                        {
+                                            <i class="fas fa-check-circle text-success"></i>
+                                            <span>In Stock</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-times-circle text-danger"></i>
+                                            <span>Out of Stock</span>
+                                        }
+                                    </small>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id"
+                                       class="btn btn-primary">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </a>
+                                    @if (product.StockQuantity > 0)
+                                    {
+                                        <form asp-controller="Products" asp-action="AddToCart" method="post" class="d-grid">
+                                            <input type="hidden" name="productId" value="@product.Id" />
+                                            <button type="submit" class="btn btn-outline-success">
+                                                <i class="fas fa-shopping-cart"></i> Add to Cart
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-secondary" disabled>
+                                            <i class="fas fa-cart-plus"></i> Out of Stock
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <small class="text-muted">
+                                <i class="far fa-calendar"></i> Added: @product.CreatedDate.ToString("MMM dd, yyyy")
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Category Statistics</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="stat-item">
+                                    <h3 class="text-primary">@Model.Products.Count</h3>
+                                    <p class="text-muted">Total Products</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-item">
+                                    <h3 class="text-success">$@Model.Products.Average(p => p.Price).ToString("N2")</h3>
+                                    <p class="text-muted">Average Price</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-item">
+                                    <h3 class="text-info">@Model.Products.Sum(p => p.StockQuantity)</h3>
+                                    <p class="text-muted">Total in Stock</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-item">
+                                    <h3 class="text-warning">@Model.Products.Count(p => p.StockQuantity > 0)</h3>
+                                    <p class="text-muted">Available Products</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-folder-open fa-4x text-muted mb-3"></i>
+                    <h3>No Products Available</h3>
+                    <p class="text-muted mb-4">There are currently no products in this category.</p>
+                    <a asp-controller="Products" asp-action="Index" class="btn btn-primary">
+                        <i class="fas fa-shopping-bag"></i> Browse All Products
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Back to Categories -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a asp-controller="Categories" asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Categories
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .product-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+    .category-icon {
+        opacity: 0.8;
+    }
+
+    .stat-item {
+        padding: 1rem;
+    }
+
+        .stat-item h3 {
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+    .breadcrumb {
+        background: none;
+        padding: 0;
+    }
+
+    .breadcrumb-item a {
+        text-decoration: none;
+        color: #6c757d;
+    }
+
+    .breadcrumb-item.active {
+        color: #495057;
+    }
+</style>

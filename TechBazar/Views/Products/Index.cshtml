@@ -1,0 +1,163 @@
+﻿
+﻿@using TechBazar.Models
+@using TechBazar.Services
+@using System.Linq
+@inject IMultiLanguageService TranslationService
+@{
+    ViewData["Title"] = "Products - TechBazaar";
+}
+
+@functions {
+    private int currentLanguageId = 1; // Default to English
+
+    public async Task<string> GetTranslated(string tableName, string columnName, long entityId)
+    {
+        // Get current language from cookie
+        if (Context.Request.Cookies.TryGetValue("SelectedLanguage", out var langCookie) && int.TryParse(langCookie, out var langId))
+        {
+            currentLanguageId = langId;
+        }
+        return await TranslationService.GetValueAsync(tableName, columnName, entityId, currentLanguageId);
+    }
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Categories</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a asp-controller="Products" asp-action="Index"
+                           class="list-group-item list-group-item-action @(ViewBag.CategoryId == null ? "active" : "")">
+                            All Categories
+                        </a>
+                        @foreach (var category in ViewBag.Categories)
+                        {
+                            <a asp-controller="Products" asp-action="Index" asp-route-categoryId="@category.Id"
+                               class="list-group-item list-group-item-action @(ViewBag.CategoryId == category.Id ? "active" : "")">
+                                @await GetTranslated("Category", "Name", category.Id)
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    @if (ViewBag.CategoryName != null)
+                    {
+                        <text>@ViewBag.CategoryName</text>
+                    }
+                    else if (ViewBag.SearchString != null)
+                    {
+                        <text>Search Results for "@ViewBag.SearchString"</text>
+                    }
+                    else
+                    {
+                        <text>All Products</text>
+                    }
+                </h2>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <form asp-controller="Products" asp-action="Index" method="get" class="d-flex">
+                        <input type="hidden" name="categoryId" value="@ViewBag.CategoryId" />
+                        <input type="hidden" name="viewType" value="@ViewBag.ViewType" />
+                        <input type="text" name="searchString" class="form-control me-2" placeholder="Search products..." value="@ViewBag.SearchString">
+                        <button type="submit" class="btn btn-outline-primary">Search</button>
+                    </form>
+
+                    <div class="btn-group" role="group" aria-label="View type">
+                        <a asp-controller="Products" asp-action="Index"
+                           asp-route-categoryId="@ViewBag.CategoryId"
+                           asp-route-searchString="@ViewBag.SearchString"
+                           asp-route-viewType="grid"
+                           class="btn btn-outline-secondary @(ViewBag.ViewType == "grid" ? "active" : "")">
+                            <i class="fas fa-th"></i> Grid
+                        </a>
+                        <a asp-controller="Products" asp-action="Index"
+                           asp-route-categoryId="@ViewBag.CategoryId"
+                           asp-route-searchString="@ViewBag.SearchString"
+                           asp-route-viewType="list"
+                           class="btn btn-outline-secondary @(ViewBag.ViewType == "list" ? "active" : "")">
+                            <i class="fas fa-list"></i> List
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            @if (ViewBag.ViewType == "list")
+            {
+                <div class="list-group">
+                    @foreach (var product in Model)
+                    {
+                        <div class="list-group-item">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <img src="@product.ImageUrl" class="img-fluid rounded" alt="@product.Name" style="max-height: 120px; object-fit: cover;">
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="mb-1">@await GetTranslated("Product", "Name", product.Id)</h5>
+                                    <p class="mb-1">@await GetTranslated("Product", "Description", product.Id)</p>
+                                    <small class="text-muted">@await GetTranslated("Category", "Name", product.Category!.Id)</small>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <div class="mb-2">
+                                        <strong class="text-success h5">$@product.Price</strong>
+                                    </div>
+                                    <div class="mb-2">
+                                        <span class="badge bg-info">Stock: @product.StockQuantity</span>
+                                    </div>
+                                    <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id"
+                                       class="btn btn-primary btn-sm">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="row g-4">
+                    @foreach (var product in Model)
+                    {
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card product-card h-100">
+                                <img src="@product.ImageUrl" class="card-img-top" alt="@product.Name" style="height: 200px; object-fit: cover;">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">@await GetTranslated("Product", "Name", product.Id)</h5>
+                                    <p class="card-text flex-grow-1">@await GetTranslated("Product", "Description", product.Id)</p>
+                                    <div class="mt-auto">
+                                        <span class="badge bg-primary mb-2">@await GetTranslated("Category", "Name", product.Category!.Id)</span>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <strong class="text-success">$@product.Price</strong>
+                                            <span class="text-muted small">Stock: @product.StockQuantity</span>
+                                        </div>
+                                        <div class="mt-2">
+                                            <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id"
+                                               class="btn btn-primary w-100">View Details</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (Model.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h3>No products found</h3>
+                    <p class="text-muted">Try adjusting your search or filter criteria.</p>
+                    <a asp-controller="Products" asp-action="Index" class="btn btn-primary">View All Products</a>
+                </div>
+            }
+        </div>
+    </div>
+</div>

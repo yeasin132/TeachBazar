@@ -1,0 +1,60 @@
+﻿@using TechBazar.Models
+@using TechBazar.Services
+@inject IMultiLanguageService TranslationService
+@model List<Category>
+@{
+    ViewData["Title"] = "Categories - TechBazaar";
+}
+
+@functions {
+    private int currentLanguageId = 1; // Default to English
+
+    public async Task<string> GetTranslated(string tableName, string columnName, long entityId)
+    {
+        // Get current language from cookie
+        if (Context.Request.Cookies.TryGetValue("SelectedLanguage", out var langCookie) && int.TryParse(langCookie, out var langId))
+        {
+            currentLanguageId = langId;
+        }
+        return await TranslationService.GetValueAsync(tableName, columnName, entityId, currentLanguageId);
+    }
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="text-center mb-5">Product Categories</h1>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var category in Model)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card category-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-laptop fa-3x text-primary"></i>
+                        </div>
+                        <h3 class="card-title">@await GetTranslated("Category", "Name", category.Id)</h3>
+                        <p class="card-text">@await GetTranslated("Category", "Description", category.Id)</p>
+                        <p class="text-muted">
+                            @category.Products.Count products available
+                        </p>
+                        <a asp-controller="Categories" asp-action="Details" asp-route-id="@category.Id"
+                           class="btn btn-primary">Browse Category</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+            <h3>No categories available</h3>
+            <p class="text-muted">Check back later for new categories.</p>
+        </div>
+    }
+</div>

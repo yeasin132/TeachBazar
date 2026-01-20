@@ -1,0 +1,150 @@
+﻿@model List<TechBazar.Models.Product>
+@using TechBazar.Models
+@using TechBazar.Services
+@using Microsoft.AspNetCore.Identity
+@using System.Linq
+@inject UserManager<ApplicationUser> UserManager
+@inject IMultiLanguageService TranslationService
+@{
+    ViewData["Title"] = "Home - TechBazaar";
+    var isAuthenticated = User.Identity?.IsAuthenticated ?? false;
+}
+
+@functions {
+    private int currentLanguageId = 1; // Default to English
+
+    public async Task<string> GetTranslated(string tableName, string columnName, long entityId)
+    {
+        // Get current language from cookie
+        if (Context.Request.Cookies.TryGetValue("SelectedLanguage", out var langCookie) && int.TryParse(langCookie, out var langId))
+        {
+            currentLanguageId = langId;
+        }
+        return await TranslationService.GetValueAsync(tableName, columnName, entityId, currentLanguageId);
+    }
+}
+
+<div class="hero-section text-center mb-5">
+    <div class="container">
+        <h1 class="h2 fw-bold mb-3">Welcome to TechBazaar</h1>
+        <p class="mb-3">Discover the latest technology products at amazing prices</p>
+        @if (isAuthenticated)
+        {
+            <a asp-controller="Products" asp-action="Index" class="btn btn-light btn-lg">Shop Now</a>
+        }
+        else
+        {
+            <a asp-controller="Account" asp-action="Login" class="btn btn-light btn-lg">Shop Now</a>
+        }
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Latest Products</h2>
+        </div>
+    </div>
+
+
+
+
+    <div class="row g-4">
+        @for (int i = 0; i < Math.Min(Model.Count, 3); i++)
+        {
+            var product = Model[i];
+            <div class="col-md-6 col-lg-4">
+                <div class="card product-card h-100">
+                    <img src="@product.ImageUrl" class="card-img-top" alt="@product.Name" style="height: 300px; object-fit: cover;">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">@await GetTranslated("Product", "Name", product.Id)</h5>
+                        <p class="card-text flex-grow-1">@await GetTranslated("Product", "Description", product.Id)</p>
+                        <div class="mt-auto">
+                            <div class="mb-2">
+                                <span class="badge bg-primary">@await GetTranslated("Category", "Name", product.CategoryId)</span>
+                            </div>
+                            @if (isAuthenticated)
+                            {
+                                <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id"
+                                   class="btn btn-primary w-100">View Details</a>
+                            }
+                            else
+                            {
+                                <a asp-controller="Account" asp-action="Login"
+                                   class="btn btn-primary w-100">View Details</a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-12 text-center">
+            @if (isAuthenticated)
+            {
+                <a asp-controller="Products" asp-action="Index" class="btn btn-primary btn-lg">View All Products</a>
+            }
+            else
+            {
+                <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-lg">View All Products</a>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const productItems = document.querySelectorAll('.featured-product-item');
+
+            // Lazy loading implementation
+            const lazyImages = document.querySelectorAll('.lazy-image');
+
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        const src = img.getAttribute('data-src');
+                        const placeholder = img.parentElement.querySelector('.image-placeholder');
+
+                        // Add loading class for blur effect
+                        img.classList.add('loading');
+
+                        // Load the image
+                        img.src = src;
+                        img.onload = () => {
+                            // Remove loading class and add loaded class
+                            img.classList.remove('loading');
+                            img.classList.add('loaded');
+
+                            // Hide placeholder
+                            if (placeholder) {
+                                placeholder.style.display = 'none';
+                            }
+                        };
+
+                        // Stop observing this image
+                        observer.unobserve(img);
+                    }
+                });
+            }, {
+                rootMargin: '50px 0px',
+                threshold: 0.01
+            });
+
+            // Observe all lazy images
+            lazyImages.forEach(img => {
+                imageObserver.observe(img);
+            });
+
+            // Initialize animations on page load
+            productItems.forEach((item, index) => {
+                setTimeout(() => {
+                    item.classList.add('animate-fade-in');
+                }, index * 100);
+            });
+        });
+    </script>
+}

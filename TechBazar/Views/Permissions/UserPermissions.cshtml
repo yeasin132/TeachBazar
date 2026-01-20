@@ -1,0 +1,54 @@
+@using Microsoft.AspNetCore.Identity
+@using TechBazar.Models
+@inject UserManager<ApplicationUser> UserManager
+@{
+    ViewData["Title"] = "User Permissions";
+}
+
+<h1>User Permissions Overview</h1>
+
+<p>
+    <a asp-action="Index" class="btn btn-secondary">Back to Permissions</a>
+    <a asp-action="ManageRoles" class="btn btn-primary">Manage Role Permissions</a>
+</p>
+
+<div class="row">
+    <div class="col-md-12">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>User Email</th>
+                    <th>Roles</th>
+                    <th>Permissions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in ViewBag.Users)
+                {
+                    <tr>
+                        <td>@user.Email</td>
+                        <td>
+                            @{
+                                var roles = await UserManager.GetRolesAsync(user);
+                            }
+                            @string.Join(", ", roles)
+                        </td>
+                        <td>
+                            @{
+                                var permissions = ViewBag.UserPermissions[user.Id] as List<string>;
+                            }
+                            @if (permissions != null && permissions.Any())
+                            {
+                                <span>@string.Join(", ", permissions)</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">No permissions</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
